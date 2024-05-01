@@ -1,5 +1,6 @@
 package com.example.spruce.repo
 
+import androidx.core.text.HtmlCompat
 import com.example.spruce.api.ApiInterface
 import com.example.spruce.api.response.CategoryResponse
 import com.example.spruce.api.response.HomeScreenResponse
@@ -49,6 +50,10 @@ class Repository @Inject constructor(private val apiService: ApiInterface) {
                         val image = mediaResponse.body()?.guid?.rendered ?: ""
                         post.imageShow = image
                     }
+
+                    post.content.rendered = HtmlCompat.fromHtml(post.content.rendered.trim(), HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
+
+
                 }
             }
         }

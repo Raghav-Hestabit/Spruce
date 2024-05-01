@@ -207,14 +207,17 @@ fun NavigationSetup(
             ) {
 
                 composable(route = Routes.Home.name) {
-                    HomeScreen("Main Activity",lazyListState = lazyListState) {
+                    HomeScreen(lazyListState = lazyListState) {
                         DataManager.postModel = it
                         navController.navigate(Routes.PostDetails.name)
                     }
                 }
 
                 composable(route = Routes.Post.name) {
-                    PostScreen()
+                    PostScreen(){ post ->
+                        DataManager.postModel = post
+                        navController.navigate(Routes.PostDetails.name)
+                    }
                 }
 
                 composable(route = "${Routes.Category.name}/{id}/{title}") { backStackEntry ->
