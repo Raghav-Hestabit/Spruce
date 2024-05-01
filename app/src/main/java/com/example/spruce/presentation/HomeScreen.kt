@@ -73,7 +73,7 @@ import com.example.spruce.viewModels.HomeScreenViewModel
 
 @SuppressLint("MutableCollectionMutableState")
 @Composable
-fun HomeScreen(fromScreen:String,lazyListState: LazyListState = rememberLazyListState(), postDetails: (postModel:HomeScreenResponse) -> Unit) {
+fun HomeScreen(lazyListState: LazyListState = rememberLazyListState(), postDetails: (postModel:HomeScreenResponse) -> Unit) {
 
     val viewModel: HomeScreenViewModel = hiltViewModel()
     val postResult = viewModel.postDataFlowData.collectAsState()
