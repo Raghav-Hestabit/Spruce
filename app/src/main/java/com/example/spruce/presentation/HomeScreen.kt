@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemsIndexed
 import coil.compose.AsyncImage
 import com.example.spruce.R
 import com.example.spruce.api.response.HomeScreenResponse
@@ -67,74 +69,17 @@ import com.example.spruce.ui.theme.ThemeColor
 import com.example.spruce.ui.theme.fonts
 import com.example.spruce.ui.theme.normalFonts
 import com.example.spruce.utils.DataManager
-import com.example.spruce.utils.DataManager.allPosts
-import com.example.spruce.utils.Resource
 import com.example.spruce.viewModels.HomeScreenViewModel
 
 @SuppressLint("MutableCollectionMutableState")
 @Composable
-fun HomeScreen(lazyListState: LazyListState = rememberLazyListState(), postDetails: (postModel:HomeScreenResponse) -> Unit) {
+fun HomeScreen(
+    postDetails: (postModel: HomeScreenResponse) -> Unit
+) {
 
+    val lazyListState = rememberLazyListState()
     val viewModel: HomeScreenViewModel = hiltViewModel()
-    val postResult = viewModel.postDataFlowData.collectAsState()
-
-
-    val postList by rememberSaveable {
-        mutableStateOf(arrayListOf<HomeScreenResponse>())
-    }
-
-    var isLoading by remember {
-        mutableStateOf(false)
-    }
-
-    var isPageLoading by remember {
-        mutableStateOf(false)
-    }
-
-
-
-    postResult.value.let {
-        when (it) {
-            is Resource.Error -> {
-                isLoading = false
-                isPageLoading = false
-                if (it.message!!.contains("The page number requested is larger than the number of pages available")){
-                    viewModel.isLastPageReached = true
-                }else{
-                    Toast.makeText(LocalContext.current, it.message, Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            is Resource.Loading -> {
-                if (viewModel.mPage == 1){
-                    isLoading = true
-                    isPageLoading = false
-                }else{
-                    isPageLoading = true
-                }
-
-
-            }
-
-            is Resource.Success -> {
-                isLoading = false
-                isPageLoading = false
-                val newData = it.data!!.filter { newPost ->
-                    postList.none { existingPost ->
-                        newPost.id == existingPost.id
-                    }
-                }
-                postList.addAll(newData)
-                allPosts += newData
-
-
-            }
-            is Resource.Empty -> {
-
-            }
-        }
-    }
-
+    val lazyPagingItems = viewModel.postDataFlowDataPager.collectAsLazyPagingItems()
 
     LazyColumn(
         state = lazyListState,
@@ -144,28 +89,26 @@ fun HomeScreen(lazyListState: LazyListState = rememberLazyListState(), postDetai
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-
-        if (isLoading) {
+        if (lazyPagingItems.itemCount == 0) {
             item {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Column {
-                        CircularProgressIndicator(modifier = Modifier.padding(start = 10.dp))
-                        Text(
-                            modifier = Modifier
-                                .padding(top = 5.dp),
-                            text = "Loading...",
-                            color = Color.Black,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            fontFamily = normalFonts,
-                        )
-                    }
+                Column(modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(modifier = Modifier.padding(start = 10.dp))
+                    Text(
+                        modifier = Modifier.padding(top = 5.dp),
+                        text = "Loading...",
+                        color = Color.Black,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = normalFonts,
+                    )
                 }
             }
         } else {
-            items(postList.size) {
-                if (it < 3) {
-                    HomeScreenRecentTop(postModel = postList[it])
+            itemsIndexed(items = lazyPagingItems,
+                ) { index, item ->
+                if (index < 3) {
+                    item?.let { HomeScreenRecentTop(postModel = it) }
                 }
             }
 
@@ -176,14 +119,12 @@ fun HomeScreen(lazyListState: LazyListState = rememberLazyListState(), postDetai
                         .padding(vertical = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-
                     Text(
                         text = "FEATURED POST",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         fontFamily = normalFonts
                     )
-
                     HorizontalDivider(
                         modifier = Modifier
                             .padding(top = 10.dp)
@@ -192,34 +133,27 @@ fun HomeScreen(lazyListState: LazyListState = rememberLazyListState(), postDetai
                         thickness = 3.dp,
                         color = SpruceThemeColor()
                     )
-
                 }
             }
 
-            items(postList.size) {
-                FeaturedPostCard(postModel = postList[it]) { postDetails(postList[it]) }
-
-                if (it == postList.size - 2 && !viewModel.isLastPageReached) {
-                    viewModel.mPage++
-                    viewModel.getPostData()
-
-                    CircularProgressIndicator()
-
-                }
-
-
+            itemsIndexed(items = lazyPagingItems,
+                key = { _, item ->
+                    item.id
+                }) { _, item ->
+                item?.let { FeaturedPostCard(postModel = it) { postDetails(it) } }
             }
 
-
-
-
+            if (lazyPagingItems.loadState.append.endOfPaginationReached) {
+                item {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(all = 20.dp)
+                    )
+                }
+            }
         }
-
-
-
     }
 }
-
 
 
 
@@ -380,11 +314,13 @@ fun HomeScreenRecentTop(postModel: HomeScreenResponse) {
 }
 
 
-
-
 @Composable
-fun FeaturedPostCard(modifier: Modifier=Modifier, postModel: HomeScreenResponse, postDetails: () -> Unit) {
-    val context =  LocalContext.current
+fun FeaturedPostCard(
+    modifier: Modifier = Modifier,
+    postModel: HomeScreenResponse,
+    postDetails: () -> Unit
+) {
+    val context = LocalContext.current
     var categories by remember {
         mutableStateOf("")
     }
@@ -513,7 +449,12 @@ fun FeaturedPostCard(modifier: Modifier=Modifier, postModel: HomeScreenResponse,
                 Spacer(modifier = Modifier.weight(1f))
 
                 Text(
-                    text = "${HtmlCompat.fromHtml(postModel.content.rendered.trim(), HtmlCompat.FROM_HTML_MODE_COMPACT)}",
+                    text = "${
+                        HtmlCompat.fromHtml(
+                            postModel.content.rendered.trim(),
+                            HtmlCompat.FROM_HTML_MODE_COMPACT
+                        )
+                    }",
                     color = Color.Black,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
@@ -531,7 +472,7 @@ fun FeaturedPostCard(modifier: Modifier=Modifier, postModel: HomeScreenResponse,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                        AsyncImage(
+                    AsyncImage(
                         model = "",
                         contentDescription = "Author Image",
                         error = painterResource(
@@ -576,8 +517,7 @@ fun FeaturedPostCard(modifier: Modifier=Modifier, postModel: HomeScreenResponse,
                                 color = ThemeColor.invoke(),
                                 shape = RoundedCornerShape(2.dp)
                             )
-                            .padding(8.dp)
-                        ,
+                            .padding(8.dp),
 
                         painter = painterResource(id = R.drawable.share_icon),
                         contentDescription = "content"
@@ -588,7 +528,10 @@ fun FeaturedPostCard(modifier: Modifier=Modifier, postModel: HomeScreenResponse,
                             postDetails()
                         }
                         .padding(start = 10.dp)
-                        .background(color = ThemeColor.invoke(), shape = RoundedCornerShape(3.dp))
+                        .background(
+                            color = ThemeColor.invoke(),
+                            shape = RoundedCornerShape(3.dp)
+                        )
                         .padding(vertical = 4.dp, horizontal = 12.dp),
                         text = "Read More",
                         color = Color.White,

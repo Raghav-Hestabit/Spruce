@@ -175,9 +175,11 @@ fun NavigationSetup(
                     navController.navigate(route = if(route == Routes.Category.name) "${route}/${id}/${titleName}" else route) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
+
                             inclusive = true
                         }
                         launchSingleTop = true
+
                         restoreState = true
                     }
                 }
@@ -199,7 +201,6 @@ fun NavigationSetup(
                 }
             }
         }) {
-
             val host = NavHost(
                 navController = navController,
                 startDestination = Routes.Home.name,
@@ -207,8 +208,8 @@ fun NavigationSetup(
             ) {
 
                 composable(route = Routes.Home.name) {
-                    HomeScreen(lazyListState = lazyListState) {
-                        DataManager.postModel = it
+                    HomeScreen() { homeResponse ->
+                        DataManager.postModel = homeResponse
                         navController.navigate(Routes.PostDetails.name)
                     }
                 }

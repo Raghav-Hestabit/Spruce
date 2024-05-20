@@ -29,6 +29,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -96,7 +97,8 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
 
-    implementation("androidx.paging:paging-runtime:3.2.1")
-    implementation("androidx.paging:paging-compose:3.2.1")
+//    implementation("androidx.paging:paging-runtime:3.2.1")
+//    implementation("androidx.paging:paging-compose:3.2.1")
+    implementation("androidx.paging:paging-compose:1.0.0-alpha12")
 
 }

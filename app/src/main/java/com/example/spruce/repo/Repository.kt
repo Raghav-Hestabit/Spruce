@@ -5,6 +5,8 @@ import com.example.spruce.api.ApiInterface
 import com.example.spruce.api.response.CategoryResponse
 import com.example.spruce.api.response.HomeScreenResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -34,33 +36,33 @@ class Repository @Inject constructor(private val apiService: ApiInterface) {
             val posts = response.body() ?: emptyList()
 
             coroutineScope {
-                posts.forEach { post ->
-                    val postCategories = post.categories
-                    val metaTag= apiService.getPostTags(postId = post.id)
+                posts.map { post ->
+                    async {
+                        val postCategories = post.categories
+                        val metaTag = apiService.getPostTags(postId = post.id)
 
-                    categories!!.forEach { category ->
-                        if (category.id in postCategories) {
-                            post.category += category.name
+                        categories?.forEach { category ->
+                            if (category.id in postCategories) {
+                                post.category += category.name
+                            }
                         }
-                    }
-                    post.hashTags =  metaTag.body()!!
-                    launch {
+                        post.hashTags = metaTag.body() ?: emptyList()
+
                         val featuredMediaId = post.featured_media
                         val mediaResponse = apiService.getPostImage(featuredMediaId)
                         val image = mediaResponse.body()?.guid?.rendered ?: ""
                         post.imageShow = image
+
+                        post.content.rendered =
+                            HtmlCompat.fromHtml(post.content.rendered.trim(), HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
+                        post
                     }
-
-                    post.content.rendered = HtmlCompat.fromHtml(post.content.rendered.trim(), HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
-
-
-                }
+                }.awaitAll()
             }
         }
 
         emit(response)
     }.flowOn(Dispatchers.IO)
-
 
 
 }

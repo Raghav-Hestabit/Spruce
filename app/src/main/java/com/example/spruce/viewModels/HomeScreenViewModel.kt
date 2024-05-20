@@ -2,6 +2,10 @@ package com.example.spruce.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import com.example.spruce.HomeScreenPagingSource
 import com.example.spruce.api.Constants
 import com.example.spruce.repo.Repository
 import com.example.spruce.api.response.PojoClass
@@ -10,6 +14,7 @@ import com.example.spruce.utils.Resource
 import com.example.spruce.utils.NetworkHelper
 import com.google.gson.GsonBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -19,6 +24,19 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(private val repo: Repository, private val networkHelper: NetworkHelper) : ViewModel() {
+
+
+    private val config = PagingConfig(pageSize = 10)
+    private val pager = Pager(config = config) {
+        HomeScreenPagingSource(repo)
+    }
+
+    fun getPosts(): Flow<PagingData<HomeScreenResponse>> {
+        return pager.flow
+    }
+
+    val postDataFlowDataPager: Flow<PagingData<HomeScreenResponse>> = pager.flow
+
 
 
     private val postDataFlow: MutableStateFlow<Resource<List<HomeScreenResponse>>> = MutableStateFlow(Resource.Empty())
@@ -32,7 +50,7 @@ class HomeScreenViewModel @Inject constructor(private val repo: Repository, priv
 
 
     init {
-        getPostData()
+        getPosts()
     }
 
 
